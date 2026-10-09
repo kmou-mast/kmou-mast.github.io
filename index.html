@@ -94,6 +94,9 @@ a.stat:hover b{color:var(--signal)}
 .stats-note a{font-weight:500}
 @media (max-width:760px){.stats{grid-template-columns:repeat(2,1fr)}}
 
+.home-donut{margin-top:64px;padding-top:40px;border-top:1px solid var(--chart)}
+.home-donut h2{font-size:24px}
+.home-donut .ko{display:block;margin-bottom:24px}
 .home-lower{display:grid;grid-template-columns:1.2fr .8fr;gap:56px;margin-top:80px;padding-top:48px;border-top:1px solid var(--chart)}
 @media (max-width:900px){.home-lower{grid-template-columns:1fr}}
 .area-mini{padding:16px 0;border-bottom:1px solid var(--chart)}
@@ -270,6 +273,13 @@ footer .left{display:flex;align-items:center;gap:14px}
 
       <div class="stats" id="stats"></div>
       <p class="stats-note" id="stats-note"></p>
+
+      <div class="home-donut">
+        <h2>SCIE papers by journal</h2>
+        <span class="ko">학술지별 SCIE 논문 수</span>
+        <div class="donut-wrap" id="home-donut"></div>
+        <a class="more" href="#metrics">Publication metrics</a>
+      </div>
 
       <div class="home-lower">
         <div>
@@ -823,6 +833,8 @@ const journalOf = p => p.venue.split(",")[0].trim();
       <thead><tr><th>Journal · 학술지</th><th class="n">Papers</th><th class="n">Share</th></tr></thead>
       <tbody>${rows.map((r,i) => `<tr><td><span class="sw" style="background:${ramp[i]}"></span>${esc(r[0])}</td><td class="n">${r[1]}</td><td class="n">${(r[1]/total*100).toFixed(1)}%</td></tr>`).join("")}</tbody>
     </table>`;
+
+  $("#home-donut").innerHTML = $("#donut").innerHTML;   // 홈에도 같은 차트 표시
 
   // 연도별
   const ys = scie.map(p => p.year), y0 = Math.min(...ys), y1 = Math.max(...ys);
