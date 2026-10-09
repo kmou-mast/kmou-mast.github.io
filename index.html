@@ -1,0 +1,573 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Maritime Autonomy Lab · KMOU</title>
+<meta name="description" content="Maritime Autonomy Lab, Korea Maritime & Ocean University — VTS, collision risk, MASS remote operation and AIS big data research.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+KR:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+/* =========================================================
+   색상·글꼴 설정 — 여기 값만 바꾸면 사이트 전체 분위기가 바뀝니다
+   ========================================================= */
+:root{
+  --paper:#F4F8F9;      /* 바탕: 해도(海圖) 종이 */
+  --chart:#DDEAEF;      /* 얕은 수역 */
+  --depth:#A7C3CF;      /* 등심선 */
+  --ink:#0F2B3A;        /* 본문·제목 */
+  --sounding:#58707C;   /* 보조 글씨 */
+  --signal:#C46F12;     /* AIS 표적 강조색 */
+  --radar-bg:#0F2B3A;
+  --radar-line:#3E6577;
+  --radar-echo:#8FD0B5;
+  --radius:6px;
+  --font:'IBM Plex Sans KR', system-ui, sans-serif;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html{scroll-behavior:smooth}
+body{background:var(--paper);color:var(--ink);font-family:var(--font);font-size:17px;line-height:1.65;-webkit-font-smoothing:antialiased}
+a{color:inherit}
+img{max-width:100%;display:block}
+:focus-visible{outline:2px solid var(--signal);outline-offset:3px}
+.wrap{max-width:1120px;margin:0 auto;padding:0 24px}
+.ko{color:var(--sounding);font-size:.92em}
+p+p{margin-top:.8em}
+
+/* ---------- 상단 메뉴 ---------- */
+header{position:sticky;top:0;z-index:20;background:rgba(244,248,249,.92);backdrop-filter:blur(8px);border-bottom:1px solid var(--chart)}
+.bar{display:flex;align-items:center;justify-content:space-between;height:64px}
+.brand{display:flex;align-items:center;gap:10px;text-decoration:none;font-weight:600;letter-spacing:-.01em}
+.brand svg{flex:none}
+.brand small{display:block;font-weight:400;font-size:12px;color:var(--sounding);line-height:1.2}
+nav ul{display:flex;gap:4px;list-style:none}
+nav a{display:block;padding:8px 12px;border-radius:var(--radius);text-decoration:none;font-size:15px;color:var(--sounding)}
+nav a:hover{color:var(--ink);background:var(--chart)}
+nav a[aria-current="page"]{color:var(--ink);font-weight:600}
+.menu-btn{display:none;background:none;border:1px solid var(--depth);border-radius:var(--radius);padding:6px 12px;font:inherit;font-size:14px;color:var(--ink);cursor:pointer}
+@media (max-width:860px){
+  .menu-btn{display:block}
+  nav{position:absolute;top:64px;left:0;right:0;background:var(--paper);border-bottom:1px solid var(--chart);display:none}
+  nav.open{display:block}
+  nav ul{flex-direction:column;padding:8px 16px 16px}
+}
+
+/* ---------- 섹션 전환 ---------- */
+main section{display:none;padding:64px 0 96px}
+main section.active{display:block}
+h1{font-size:clamp(34px,5vw,54px);line-height:1.12;letter-spacing:-.025em;font-weight:700}
+h2{font-size:30px;line-height:1.25;letter-spacing:-.02em;font-weight:600;margin-bottom:6px}
+h3{font-size:20px;line-height:1.35;font-weight:600}
+.page-head{margin-bottom:48px;max-width:680px}
+.page-head p{margin-top:12px;color:var(--sounding)}
+
+/* ---------- 홈: 레이더 히어로 ---------- */
+#home{padding-top:40px}
+.hero{display:grid;grid-template-columns:1.05fr .95fr;gap:48px;align-items:center}
+.hero p.lead{font-size:19px;margin-top:20px;max-width:34em}
+.hero .ko{margin-top:10px;max-width:34em}
+.actions{display:flex;flex-wrap:wrap;gap:12px;margin-top:32px}
+.btn{display:inline-block;padding:11px 20px;border-radius:var(--radius);text-decoration:none;font-weight:500;font-size:15px;border:1px solid var(--ink)}
+.btn.primary{background:var(--ink);color:var(--paper)}
+.btn:hover{background:var(--chart);color:var(--ink)}
+.radar{position:relative;aspect-ratio:1;border-radius:50%;background:var(--radar-bg);overflow:hidden;box-shadow:0 0 0 10px var(--chart)}
+.radar canvas{width:100%;height:100%;display:block}
+.radar-caption{margin-top:22px;font-size:13px;color:var(--sounding);text-align:center}
+@media (max-width:860px){.hero{grid-template-columns:1fr}.radar-box{max-width:420px;margin:0 auto;width:100%}}
+
+.home-lower{display:grid;grid-template-columns:1fr 1fr;gap:56px;margin-top:96px;padding-top:48px;border-top:1px solid var(--chart)}
+@media (max-width:860px){.home-lower{grid-template-columns:1fr}}
+.more{display:inline-block;margin-top:16px;font-size:15px;font-weight:500}
+
+/* ---------- 연구 분야 ---------- */
+.themes{display:grid;grid-template-columns:repeat(2,1fr);gap:0;border-top:1px solid var(--depth)}
+.theme{padding:32px 32px 36px 0;border-bottom:1px solid var(--depth)}
+.theme:nth-child(even){padding-left:32px;padding-right:0;border-left:1px solid var(--depth)}
+.theme h3{margin-bottom:4px}
+.theme .ko-title{color:var(--sounding);font-size:15px;margin-bottom:14px}
+.tags{display:flex;flex-wrap:wrap;gap:6px;margin-top:16px}
+.tags span{font-size:13px;padding:3px 10px;border-radius:20px;background:var(--chart);color:var(--ink)}
+@media (max-width:760px){.themes{grid-template-columns:1fr}.theme,.theme:nth-child(even){padding:28px 0;border-left:none}}
+
+.projects{width:100%;border-collapse:collapse;margin-top:16px;font-size:15px}
+.projects th{text-align:left;font-weight:600;color:var(--sounding);padding:10px 12px 10px 0;border-bottom:1px solid var(--ink)}
+.projects td{padding:14px 12px 14px 0;border-bottom:1px solid var(--chart);vertical-align:top}
+.table-scroll{overflow-x:auto}
+
+/* ---------- 구성원 ---------- */
+.group{margin-bottom:56px}
+.group h2{font-size:22px;margin-bottom:20px}
+.people{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:28px}
+.person{display:flex;gap:16px;align-items:flex-start}
+.avatar{flex:none;width:72px;height:72px;border-radius:50%;background:var(--chart);display:grid;place-items:center;font-weight:600;color:var(--sounding);overflow:hidden}
+.avatar img{width:100%;height:100%;object-fit:cover}
+.person .name,.pi .name{font-weight:600}
+.person .role{font-size:14px;color:var(--sounding)}
+.person .interest{font-size:14px;margin-top:4px}
+.person a{font-size:14px}
+.pi{display:grid;grid-template-columns:160px 1fr;gap:32px;align-items:start;padding:32px;background:#fff;border:1px solid var(--chart);border-radius:var(--radius)}
+.pi .avatar{width:160px;height:160px;font-size:32px}
+@media (max-width:620px){.pi{grid-template-columns:1fr}.pi .avatar{width:120px;height:120px}}
+
+/* ---------- 논문·특허 ---------- */
+.filters{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:32px}
+.filters button{font:inherit;font-size:14px;padding:6px 14px;border-radius:20px;border:1px solid var(--depth);background:transparent;color:var(--ink);cursor:pointer}
+.filters button[aria-pressed="true"]{background:var(--ink);color:var(--paper);border-color:var(--ink)}
+.year{display:grid;grid-template-columns:90px 1fr;gap:24px;padding:24px 0;border-top:1px solid var(--chart)}
+.year > strong{font-size:22px;font-weight:600;color:var(--sounding)}
+.pub{padding:0 0 18px}
+.pub:last-child{padding-bottom:0}
+.pub .t{font-weight:600}
+.pub .a,.pub .v{font-size:15px;color:var(--sounding)}
+.pub .a b{color:var(--ink);font-weight:600}
+.pub .kind{font-size:12px;padding:1px 8px;border-radius:10px;background:var(--chart);margin-right:6px;vertical-align:2px}
+.pub .kind.patent{background:#F4E3CF}
+@media (max-width:620px){.year{grid-template-columns:1fr;gap:8px}}
+
+/* ---------- 소식 ---------- */
+.news-list{list-style:none}
+.news-list li{display:grid;grid-template-columns:110px 1fr;gap:20px;padding:18px 0;border-bottom:1px solid var(--chart)}
+.news-list time{color:var(--sounding);font-size:15px;font-variant-numeric:tabular-nums}
+.news-list .ko{display:block}
+@media (max-width:620px){.news-list li{grid-template-columns:1fr;gap:2px}}
+
+/* ---------- 연락처 ---------- */
+.contact{display:grid;grid-template-columns:1fr 1fr;gap:48px}
+.contact dl{display:grid;grid-template-columns:90px 1fr;gap:12px 20px}
+.contact dt{color:var(--sounding)}
+.recruit{padding:28px;border-radius:var(--radius);background:var(--ink);color:var(--paper)}
+.recruit .ko{color:var(--depth)}
+.recruit .btn{border-color:var(--paper);color:var(--paper);margin-top:20px}
+.recruit .btn:hover{background:var(--paper);color:var(--ink)}
+@media (max-width:760px){.contact{grid-template-columns:1fr}}
+
+footer{border-top:1px solid var(--chart);padding:32px 0;font-size:14px;color:var(--sounding)}
+footer .wrap{display:flex;justify-content:space-between;flex-wrap:wrap;gap:12px}
+
+@media (prefers-reduced-motion:reduce){html{scroll-behavior:auto}}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="wrap bar">
+    <a class="brand" href="#home">
+      <svg width="34" height="34" viewBox="0 0 34 34" aria-hidden="true"><circle cx="17" cy="17" r="15.5" fill="none" stroke="#0F2B3A" stroke-width="1.5"/><circle cx="17" cy="17" r="9" fill="none" stroke="#A7C3CF" stroke-width="1.2"/><path d="M17 17 L28 9" stroke="#C46F12" stroke-width="2" stroke-linecap="round"/><circle cx="17" cy="17" r="2" fill="#0F2B3A"/></svg>
+      <span><span id="lab-short">Maritime Autonomy Lab</span><small id="lab-univ">Korea Maritime &amp; Ocean University</small></span>
+    </a>
+    <button class="menu-btn" aria-expanded="false" aria-controls="site-nav">Menu</button>
+    <nav id="site-nav">
+      <ul>
+        <li><a href="#home">Home</a></li>
+        <li><a href="#about">About</a></li>
+        <li><a href="#research">Research</a></li>
+        <li><a href="#members">Members</a></li>
+        <li><a href="#publications">Publications</a></li>
+        <li><a href="#news">News</a></li>
+        <li><a href="#contact">Contact</a></li>
+      </ul>
+    </nav>
+  </div>
+</header>
+
+<main>
+  <!-- ================= HOME ================= -->
+  <section id="home">
+    <div class="wrap">
+      <div class="hero">
+        <div>
+          <h1 id="hero-title">Watching the sea the way navigators and VTS operators do.</h1>
+          <p class="lead" id="hero-lead"></p>
+          <p class="ko" id="hero-ko"></p>
+          <div class="actions">
+            <a class="btn primary" href="#research">See our research</a>
+            <a class="btn" href="#contact">Join the lab</a>
+          </div>
+        </div>
+        <div class="radar-box">
+          <div class="radar"><canvas id="radar" aria-label="Animated radar display showing vessel targets" role="img"></canvas></div>
+          <p class="radar-caption">Simulated traffic picture · 시뮬레이션 화면</p>
+        </div>
+      </div>
+
+      <div class="home-lower">
+        <div>
+          <h2>Research areas</h2>
+          <p class="ko">연구 분야</p>
+          <ul id="home-themes" style="list-style:none;margin-top:20px"></ul>
+          <a class="more" href="#research">All research</a>
+        </div>
+        <div>
+          <h2>Latest news</h2>
+          <p class="ko">최근 소식</p>
+          <ul class="news-list" id="home-news" style="margin-top:12px"></ul>
+          <a class="more" href="#news">All news</a>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ================= ABOUT ================= -->
+  <section id="about">
+    <div class="wrap">
+      <div class="page-head">
+        <h1>About the lab</h1>
+        <p>연구실 소개</p>
+      </div>
+      <div style="max-width:720px">
+        <h2 style="font-size:22px">Mission</h2>
+        <div id="about-en" style="margin-top:12px"></div>
+        <h2 style="font-size:22px;margin-top:40px">연구실 소개</h2>
+        <div id="about-ko" style="margin-top:12px"></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ================= RESEARCH ================= -->
+  <section id="research">
+    <div class="wrap">
+      <div class="page-head">
+        <h1>Research</h1>
+        <p>연구 분야 및 과제</p>
+      </div>
+      <div class="themes" id="themes"></div>
+
+      <h2 style="margin-top:72px">Projects</h2>
+      <p class="ko">수행 과제</p>
+      <div class="table-scroll">
+        <table class="projects">
+          <thead><tr><th>Project · 과제명</th><th>Funding · 지원기관</th><th>Period · 기간</th></tr></thead>
+          <tbody id="projects"></tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+
+  <!-- ================= MEMBERS ================= -->
+  <section id="members">
+    <div class="wrap">
+      <div class="page-head">
+        <h1>Members</h1>
+        <p>구성원</p>
+      </div>
+      <div id="members-list"></div>
+    </div>
+  </section>
+
+  <!-- ================= PUBLICATIONS ================= -->
+  <section id="publications">
+    <div class="wrap">
+      <div class="page-head">
+        <h1>Publications &amp; patents</h1>
+        <p>논문 및 특허</p>
+      </div>
+      <div class="filters" id="filters" role="group" aria-label="Filter publications"></div>
+      <div id="pubs"></div>
+    </div>
+  </section>
+
+  <!-- ================= NEWS ================= -->
+  <section id="news">
+    <div class="wrap">
+      <div class="page-head">
+        <h1>News</h1>
+        <p>연구실 소식</p>
+      </div>
+      <ul class="news-list" id="news-list"></ul>
+    </div>
+  </section>
+
+  <!-- ================= CONTACT ================= -->
+  <section id="contact">
+    <div class="wrap">
+      <div class="page-head">
+        <h1>Contact</h1>
+        <p>연락처 및 학생 모집</p>
+      </div>
+      <div class="contact">
+        <dl id="contact-info"></dl>
+        <div class="recruit">
+          <h3>We are recruiting M.S. and Ph.D. students</h3>
+          <p class="ko" style="margin-top:6px">석·박사과정 학생을 모집합니다</p>
+          <p style="margin-top:16px" id="recruit-text"></p>
+          <a class="btn" id="recruit-mail" href="#">Email the lab</a>
+        </div>
+      </div>
+    </div>
+  </section>
+</main>
+
+<footer>
+  <div class="wrap">
+    <span id="footer-name"></span>
+    <span>© <span id="year"></span> Korea Maritime &amp; Ocean University</span>
+  </div>
+</footer>
+
+<script>
+/* =========================================================
+   ✏️ 내용 수정은 여기서만 하면 됩니다.
+   [ ] 로 표시된 부분이 채워 넣을 자리입니다.
+   ========================================================= */
+
+const LAB = {
+  name: "Maritime Autonomy Lab",                // [연구실 영문명 확정 후 교체]
+  nameKo: "[연구실 국문명]",
+  univ: "Korea Maritime & Ocean University",
+  lead: "We build AI that learns from navigators and VTS operators, so that ships — crewed, remotely operated or autonomous — move through busy waters safely and efficiently.",
+  leadKo: "항해사와 VTS 관제사의 경험지식을 학습하는 인공지능으로 유인선·원격운항선·자율운항선박의 안전하고 효율적인 운항을 연구합니다.",
+  aboutEn: [
+    "[Lab name] at Korea Maritime & Ocean University studies maritime traffic through the eyes of the people who manage it. We combine AIS big data, navigation science and machine learning to support decisions on the bridge, at the VTS centre and at the remote operation centre.",
+    "Our work aims at explainable, operator-centred tools that fit the regulatory frameworks of IMO and IALA."
+  ],
+  aboutKo: [
+    "[연구실명]은 해상교통을 실제로 관리하는 사람의 관점에서 연구합니다. AIS 빅데이터, 항해학, 기계학습을 결합하여 선교, VTS 센터, 원격운항센터의 의사결정을 지원하는 기술을 개발합니다.",
+    "IMO·IALA 규범 체계에 부합하는 설명 가능하고 운용자 중심적인 도구를 지향합니다."
+  ],
+  email: "[lab-email]@kmou.ac.kr",
+  phone: "+82-51-410-[0000]",
+  address: "727 Taejong-ro, Yeongdo-gu, Busan 49112, Republic of Korea",
+  addressKo: "부산광역시 영도구 태종로 727 국립한국해양대학교 [건물명] [호실]",
+  room: "[Building], Room [000]",
+  recruit: "If you are interested in VTS, collision avoidance, autonomous ships or maritime traffic data, send us your CV and a short note on what you would like to study."
+};
+
+const THEMES = [
+  { en:"VTS and collision risk assessment", ko:"VTS 및 선박충돌 위험도 평가",
+    text:"Machine-learning models that estimate collision risk the way VTS operators judge it, and ways to show that risk clearly on the traffic display.",
+    tags:["Collision risk","VTS","XAI","COLREGs"] },
+  { en:"Remote operation of autonomous ships", ko:"자율운항선박 원격운항",
+    text:"Concepts of operation, human roles and responsibility for remote operation centres (ROC) supervising MASS across a whole voyage.",
+    tags:["MASS","ROC","Human factors","Liability"] },
+  { en:"AIS big data and port traffic prediction", ko:"AIS 빅데이터 기반 항만교통 예측",
+    text:"Predicting transit times, destinations and berthing from vessel tracks to support port and VTS planning.",
+    tags:["AIS","Transformer","Port operations"] },
+  { en:"Path planning and anchorage assignment", ko:"경로계획 및 묘박지 배정",
+    text:"Deep reinforcement learning for safe routes in congested waters and for assigning anchorage positions.",
+    tags:["Deep RL","Route planning","Anchorage"] }
+];
+
+const PROJECTS = [
+  { title:"[과제명 예시] AI 완전자율운항선박 운용기술 개발", agency:"[지원기관]", period:"[2026–2029]" },
+  { title:"[과제명 예시] AI 기반 VTS 선박충돌 위험도 표출 개선 연구", agency:"[지원기관]", period:"[2026]" }
+];
+
+/* group 값: "pi" | "postdoc" | "phd" | "ms" | "alumni"
+   photo: "img/파일명.jpg" 처럼 사진을 올리면 표시됩니다 (없으면 이니셜) */
+const MEMBERS = [
+  { group:"pi", name:"[영문 성명]", ko:"양현", role:"Professor · 지도교수",
+    interest:"[연구 관심분야 한 줄]", email:"[email]@kmou.ac.kr", photo:"",
+    bio:"[학력·경력 2~3줄. 예: Ph.D. in Navigation Science, KMOU ...]" },
+  { group:"postdoc", name:"[English name]", ko:"신길호", role:"Postdoctoral researcher",
+    interest:"VTS, collision risk, MASS remote operation", email:"", photo:"" },
+  { group:"phd", name:"[English name]", ko:"[이름]", role:"Ph.D. student", interest:"[관심분야]", email:"", photo:"" },
+  { group:"ms",  name:"[English name]", ko:"[이름]", role:"M.S. student",  interest:"[관심분야]", email:"", photo:"" },
+  { group:"alumni", name:"[English name]", ko:"[이름]", role:"M.S. 20XX → [현 소속]", interest:"", email:"", photo:"" }
+];
+
+/* type: "journal" | "conference" | "patent"
+   authors 안에서 연구실 구성원은 **이름** 처럼 감싸면 굵게 표시됩니다 */
+const PUBS = [
+  { year:2026, type:"journal", authors:"**[Author A]**, [Author B], **[Author C]**",
+    title:"[Paper title]", venue:"[Journal name], vol(issue), pages", link:"" },
+  { year:2026, type:"patent", authors:"**[발명자]**",
+    title:"[특허 명칭]", venue:"Korean patent application [No.]", link:"" },
+  { year:2025, type:"journal", authors:"**[Author A]**, [Author B]",
+    title:"[Paper title]", venue:"[Journal name]", link:"" },
+  { year:2025, type:"conference", authors:"**[Author A]**",
+    title:"[Paper title]", venue:"[Conference name], [City]", link:"" }
+];
+
+const NEWS = [
+  { date:"2026-10-09", en:"Lab website launched.", ko:"연구실 홈페이지를 개설했습니다." },
+  { date:"2026-09-01", en:"[News item in English]", ko:"[국문 소식]" },
+  { date:"2026-08-20", en:"[News item in English]", ko:"[국문 소식]" }
+];
+
+/* =========================================================
+   아래는 화면을 그리는 코드입니다. 보통은 건드릴 필요가 없습니다.
+   ========================================================= */
+const $ = s => document.querySelector(s);
+const esc = s => String(s ?? "").replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+const bold = s => esc(s).replace(/\*\*(.+?)\*\*/g, "<b>$1</b>");
+
+document.title = `${LAB.name} · KMOU`;
+$("#lab-short").textContent = LAB.name;
+$("#footer-name").textContent = LAB.name;
+$("#year").textContent = new Date().getFullYear();
+$("#hero-lead").textContent = LAB.lead;
+$("#hero-ko").textContent = LAB.leadKo;
+$("#about-en").innerHTML = LAB.aboutEn.map(p => `<p>${esc(p)}</p>`).join("");
+$("#about-ko").innerHTML = LAB.aboutKo.map(p => `<p>${esc(p)}</p>`).join("");
+
+$("#home-themes").innerHTML = THEMES.map(t =>
+  `<li style="padding:12px 0;border-bottom:1px solid var(--chart)"><strong>${esc(t.en)}</strong><br><span class="ko">${esc(t.ko)}</span></li>`).join("");
+$("#themes").innerHTML = THEMES.map(t => `
+  <article class="theme">
+    <h3>${esc(t.en)}</h3>
+    <p class="ko-title">${esc(t.ko)}</p>
+    <p>${esc(t.text)}</p>
+    <div class="tags">${t.tags.map(g => `<span>${esc(g)}</span>`).join("")}</div>
+  </article>`).join("");
+$("#projects").innerHTML = PROJECTS.map(p =>
+  `<tr><td>${esc(p.title)}</td><td>${esc(p.agency)}</td><td>${esc(p.period)}</td></tr>`).join("");
+
+const initials = m => (m.ko && !m.ko.startsWith("[") ? m.ko.slice(0,1) : "·");
+const avatar = m => `<div class="avatar">${m.photo ? `<img src="${esc(m.photo)}" alt="${esc(m.ko)}">` : esc(initials(m))}</div>`;
+const GROUPS = [["pi","Principal investigator","지도교수"],["postdoc","Postdoctoral researchers","박사후연구원"],["phd","Ph.D. students","박사과정"],["ms","M.S. students","석사과정"],["alumni","Alumni","졸업생"]];
+$("#members-list").innerHTML = GROUPS.map(([key,en,ko]) => {
+  const list = MEMBERS.filter(m => m.group === key);
+  if (!list.length) return "";
+  if (key === "pi") return `<div class="group">${list.map(m => `
+    <div class="pi">${avatar(m)}
+      <div><p class="name" style="font-size:22px">${esc(m.ko)} <span class="ko">${esc(m.name)}</span></p>
+      <p class="role">${esc(m.role)}</p>
+      <p style="margin-top:14px">${esc(m.bio)}</p>
+      <p class="interest" style="margin-top:10px">${esc(m.interest)}</p>
+      ${m.email ? `<a href="mailto:${esc(m.email)}">${esc(m.email)}</a>` : ""}</div>
+    </div>`).join("")}</div>`;
+  return `<div class="group"><h2>${en} <span class="ko">${ko}</span></h2><div class="people">${list.map(m => `
+    <div class="person">${avatar(m)}
+      <div><p class="name">${esc(m.ko)} <span class="ko">${esc(m.name)}</span></p>
+      <p class="role">${esc(m.role)}</p>
+      ${m.interest ? `<p class="interest">${esc(m.interest)}</p>` : ""}
+      ${m.email ? `<a href="mailto:${esc(m.email)}">${esc(m.email)}</a>` : ""}</div>
+    </div>`).join("")}</div></div>`;
+}).join("");
+
+const KINDS = {journal:"Journal", conference:"Conference", patent:"Patent"};
+let filter = "all";
+function renderPubs(){
+  const counts = {all:PUBS.length};
+  PUBS.forEach(p => counts[p.type] = (counts[p.type]||0)+1);
+  $("#filters").innerHTML = [["all","All · 전체"],["journal","Journal · 학술지"],["conference","Conference · 학술대회"],["patent","Patent · 특허"]]
+    .filter(([k]) => counts[k])
+    .map(([k,l]) => `<button data-k="${k}" aria-pressed="${filter===k}">${l} (${counts[k]})</button>`).join("");
+  const list = PUBS.filter(p => filter==="all" || p.type===filter);
+  const years = [...new Set(list.map(p => p.year))].sort((a,b) => b-a);
+  $("#pubs").innerHTML = years.map(y => `
+    <div class="year"><strong>${y}</strong><div>${list.filter(p => p.year===y).map(p => `
+      <div class="pub">
+        <p class="t"><span class="kind ${p.type}">${KINDS[p.type]}</span>${p.link ? `<a href="${esc(p.link)}" target="_blank" rel="noopener">${esc(p.title)}</a>` : esc(p.title)}</p>
+        <p class="a">${bold(p.authors)}</p>
+        <p class="v">${esc(p.venue)}</p>
+      </div>`).join("")}</div></div>`).join("");
+}
+$("#filters").addEventListener("click", e => {
+  const b = e.target.closest("button"); if (!b) return;
+  filter = b.dataset.k; renderPubs();
+});
+renderPubs();
+
+const newsItem = n => `<li><time datetime="${esc(n.date)}">${esc(n.date.replaceAll("-","."))}</time><div>${esc(n.en)}<span class="ko">${esc(n.ko)}</span></div></li>`;
+const sortedNews = [...NEWS].sort((a,b) => b.date.localeCompare(a.date));
+$("#news-list").innerHTML = sortedNews.map(newsItem).join("");
+$("#home-news").innerHTML = sortedNews.slice(0,3).map(newsItem).join("");
+
+$("#contact-info").innerHTML = `
+  <dt>Address</dt><dd>${esc(LAB.address)}<br><span class="ko">${esc(LAB.addressKo)}</span></dd>
+  <dt>Room</dt><dd>${esc(LAB.room)}</dd>
+  <dt>Tel</dt><dd>${esc(LAB.phone)}</dd>
+  <dt>E-mail</dt><dd><a href="mailto:${esc(LAB.email)}">${esc(LAB.email)}</a></dd>`;
+$("#recruit-text").textContent = LAB.recruit;
+$("#recruit-mail").href = `mailto:${LAB.email}?subject=${encodeURIComponent("Graduate admission enquiry")}`;
+
+/* ---------- 메뉴 이동 (#주소에 따라 섹션 전환) ---------- */
+const SECTIONS = ["home","about","research","members","publications","news","contact"];
+function route(){
+  const id = SECTIONS.includes(location.hash.slice(1)) ? location.hash.slice(1) : "home";
+  SECTIONS.forEach(s => document.getElementById(s).classList.toggle("active", s===id));
+  document.querySelectorAll("nav a").forEach(a => {
+    if (a.getAttribute("href") === "#"+id) a.setAttribute("aria-current","page");
+    else a.removeAttribute("aria-current");
+  });
+  $("#site-nav").classList.remove("open"); $(".menu-btn").setAttribute("aria-expanded","false");
+  window.scrollTo(0,0);
+}
+window.addEventListener("hashchange", route);
+route();
+$(".menu-btn").addEventListener("click", () => {
+  const open = $("#site-nav").classList.toggle("open");
+  $(".menu-btn").setAttribute("aria-expanded", open);
+});
+
+/* ---------- 레이더 화면 ---------- */
+(function radar(){
+  const cv = $("#radar"), ctx = cv.getContext("2d");
+  const css = getComputedStyle(document.documentElement);
+  const C = k => css.getPropertyValue(k).trim();
+  const still = matchMedia("(prefers-reduced-motion: reduce)").matches;
+  let W, R;
+  function size(){ const d = devicePixelRatio||1; W = cv.clientWidth; cv.width = cv.height = W*d; ctx.setTransform(d,0,0,d,0,0); R = W/2; }
+  size(); addEventListener("resize", size);
+
+  // 표적: 극좌표 아닌 단위원 좌표(-1~1), 속도, 침로
+  const ships = Array.from({length:9}, (_,i) => ({
+    x: Math.cos(i*0.7)*(0.25+0.6*((i*37)%10)/10),
+    y: Math.sin(i*1.3)*(0.25+0.6*((i*53)%10)/10),
+    c: (i*41)%360 * Math.PI/180,
+    v: 0.0004 + ((i*7)%5)*0.00012,
+    seen: 0, track: []
+  }));
+  ships[0].focus = true; ships[1].focus = true;
+  // 간단한 해안선 (좌상단 육지)
+  const coast = [[-1,-0.35],[-0.72,-0.42],[-0.55,-0.62],[-0.38,-0.7],[-0.3,-0.95],[-0.2,-1],[-1,-1]];
+
+  let ang = 0, last = performance.now();
+  function frame(now){
+    const dt = Math.min(50, now-last); last = now;
+    ctx.clearRect(0,0,W,W);
+    ctx.save(); ctx.translate(R,R);
+    // 육지
+    ctx.fillStyle = "rgba(167,195,207,.18)";
+    ctx.beginPath(); coast.forEach(([x,y],i) => i ? ctx.lineTo(x*R,y*R) : ctx.moveTo(x*R,y*R)); ctx.closePath(); ctx.fill();
+    // 거리 링·방위선
+    ctx.strokeStyle = C("--radar-line"); ctx.lineWidth = 1;
+    for (let k=1;k<=4;k++){ ctx.beginPath(); ctx.arc(0,0,R*k/4.2,0,7); ctx.stroke(); }
+    for (let a=0;a<12;a++){ ctx.beginPath(); ctx.moveTo(0,0); const t=a*Math.PI/6; ctx.lineTo(Math.cos(t)*R,Math.sin(t)*R); ctx.globalAlpha=.35; ctx.stroke(); ctx.globalAlpha=1; }
+    // 스윕
+    if (!still){
+      const g = ctx.createConicGradient ? ctx.createConicGradient(ang-0.9,0,0) : null;
+      if (g){ g.addColorStop(0,"rgba(143,208,181,0)"); g.addColorStop(0.14,"rgba(143,208,181,.22)"); g.addColorStop(0.1433,"rgba(143,208,181,0)");
+        ctx.fillStyle = g; ctx.beginPath(); ctx.arc(0,0,R,0,7); ctx.fill(); }
+      ctx.strokeStyle = C("--radar-echo"); ctx.globalAlpha=.8;
+      ctx.beginPath(); ctx.moveTo(0,0); ctx.lineTo(Math.cos(ang)*R, Math.sin(ang)*R); ctx.stroke(); ctx.globalAlpha=1;
+    }
+    // 표적
+    ships.forEach(s => {
+      if (!still){
+        s.x += Math.sin(s.c)*s.v*dt/16; s.y -= Math.cos(s.c)*s.v*dt/16;
+        if (Math.hypot(s.x,s.y) > 0.95){ s.c += Math.PI; s.track = []; }
+        const a = (Math.atan2(s.y,s.x)+2*Math.PI)%(2*Math.PI), sw = (ang%(2*Math.PI)+2*Math.PI)%(2*Math.PI);
+        let diff = sw - a; if (diff<0) diff += 2*Math.PI;
+        if (diff < 0.08){ s.seen = 1; s.track.push([s.x,s.y]); if (s.track.length>14) s.track.shift(); }
+        s.seen = Math.max(0.25, s.seen - dt/5200);
+      } else { s.seen = 1; }
+      const px = s.x*R, py = s.y*R, col = s.focus ? C("--signal") : C("--radar-echo");
+      // 항적
+      ctx.fillStyle = col;
+      s.track.forEach(([tx,ty],i) => { ctx.globalAlpha = (i/s.track.length)*.5*s.seen; ctx.beginPath(); ctx.arc(tx*R,ty*R,1.4,0,7); ctx.fill(); });
+      // 선박 심볼(삼각형) + 속도벡터
+      ctx.globalAlpha = s.seen;
+      ctx.save(); ctx.translate(px,py); ctx.rotate(s.c);
+      ctx.beginPath(); ctx.moveTo(0,-7); ctx.lineTo(4.5,5); ctx.lineTo(-4.5,5); ctx.closePath();
+      ctx.strokeStyle = col; ctx.lineWidth = 1.5; ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(0,-7); ctx.lineTo(0,-7-s.v*60000); ctx.stroke();
+      ctx.restore();
+      ctx.globalAlpha = 1;
+    });
+    // 두 강조 표적 사이 CPA 선
+    const [a,b] = ships;
+    ctx.setLineDash([4,5]); ctx.strokeStyle = C("--signal"); ctx.globalAlpha=.6;
+    ctx.beginPath(); ctx.moveTo(a.x*R,a.y*R); ctx.lineTo(b.x*R,b.y*R); ctx.stroke();
+    ctx.setLineDash([]); ctx.globalAlpha=1;
+    ctx.restore();
+    ang += dt/1400;
+    if (!still) requestAnimationFrame(frame);
+  }
+  requestAnimationFrame(frame);
+})();
+</script>
+</body>
+</html>
